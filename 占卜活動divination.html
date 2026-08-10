@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>命運爬樓梯 - 靈性模組化占卜引擎</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #8b5cf6;
+            --primary-hover: #7c3aed;
+            --accent: #f43f5e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            color: #c084fc;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* 爬樓梯進度條 */
+        .stair-progress {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .stair-step {
+            width: 22%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            transition: all 0.3s ease;
+        }
+
+        .stair-step.active {
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+        }
+
+        .step-content {
+            display: none;
+        }
+
+        .step-content.active {
+            display: block;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2.step-title {
+            font-size: 1.125rem;
+            margin-bottom: 16px;
+            text-align: center;
+            color: #e2e8f0;
+        }
+
+        /* 方塊按鍵網格 */
+        .grid-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .grid-options.cols-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .grid-options.cols-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .square-btn {
+            background: #0f172a;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            color: var(--text-main);
+            padding: 16px 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1;
+            text-align: center;
+        }
+
+        .square-btn:hover {
+            border-color: var(--primary);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .square-btn.selected {
+            background: var(--primary);
+            border-color: var(--primary-hover);
+            color: white;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .btn-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .square-btn.selected .btn-desc {
+            color: #f1f5f9;
+        }
+
+        .nav-btns {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .action-btn {
+            flex: 1;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .action-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .action-btn.secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        /* 結果頁面樣式 */
+        .result-card {
+            background: #0f172a;
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .result-title {
+            color: #c084fc;
+            font-size: 1rem;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        .result-text {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>命運爬樓梯占卜引擎</h1>
+        <p>四維模組化人生密碼解析</p>
+    </header>
+
+    <!-- 爬樓梯階梯進度條 -->
+    <div class="stair-progress">
+        <div class="stair-step active" id="s1"></div>
+        <div class="stair-step" id="s2"></div>
+        <div class="stair-step" id="s3"></div>
+        <div class="stair-step" id="s4"></div>
+    </div>
+
+    <!-- 階段一：血型模組 -->
+    <div class="step-content active" id="step-1">
+        <h2 class="step-title">第一階：選擇你的血型</h2>
+        <div class="grid-options">
+            <button class="square-btn" onclick="selectOption(1, 'O型', this)">O型<span class="btn-desc">領導實踐</span></button>
+            <button class="square-btn" onclick="selectOption(1, 'A型', this)">A型<span class="btn-desc">細緻謹慎</span></button>
+            <button class="square-btn" onclick="selectOption(1, 'B型', this)">B型<span class="btn-desc">直覺創造</span></button>
+            <button class="square-btn" onclick="selectOption(1, 'AB型', this)">AB型<span class="btn-desc">理性多變</span></button>
+        </div>
+    </div>
+
+    <!-- 階段二：排行學模組 -->
+    <div class="step-content" id="step-2">
+        <h2 class="step-title">第二階：選擇你的家族排行</h2>
+        <div class="grid-options">
+            <button class="square-btn" onclick="selectOption(2, '排行老大', this)">排行老大<span class="btn-desc">責任擔當</span></button>
+            <button class="square-btn" onclick="selectOption(2, '排行老二', this)">排行老二<span class="btn-desc">協調適應</span></button>
+            <button class="square-btn" onclick="selectOption(2, '排行老么', this)">排行老么<span class="btn-desc">靈巧受寵</span></button>
+            <button class="square-btn" onclick="selectOption(2, '獨生子女', this)">獨生子女<span class="btn-desc">獨立自我</span></button>
+        </div>
+        <div class="nav-btns">
+            <button class="action-btn secondary" onclick="prevStep()">上一階</button>
+        </div>
+    </div>
+
+    <!-- 階段三：十二星座模組 -->
+    <div class="step-content" id="step-3">
+        <h2 class="step-title">第三階：選擇你的十二星座</h2>
+        <div class="grid-options cols-3">
+            <button class="square-btn" onclick="selectOption(3, '牡羊座', this)">牡羊座</button>
+            <button class="square-btn" onclick="selectOption(3, '金牛座', this)">金牛座</button>
+            <button class="square-btn" onclick="selectOption(3, '雙子座', this)">雙子座</button>
+            <button class="square-btn" onclick="selectOption(3, '巨蟹座', this)">巨蟹座</button>
+            <button class="square-btn" onclick="selectOption(3, '獅子座', this)">獅子座</button>
+            <button class="square-btn" onclick="selectOption(3, '處女座', this)">處女座</button>
+            <button class="square-btn" onclick="selectOption(3, '天秤座', this)">天秤座</button>
+            <button class="square-btn" onclick="selectOption(3, '天蠍座', this)">天蠍座</button>
+            <button class="square-btn" onclick="selectOption(3, '射手座', this)">射手座</button>
+            <button class="square-btn" onclick="selectOption(3, '摩羯座', this)">摩羯座</button>
+            <button class="square-btn" onclick="selectOption(3, '水瓶座', this)">水瓶座</button>
+            <button class="square-btn" onclick="selectOption(3, '雙魚座', this)">雙魚座</button>
+        </div>
+        <div class="nav-btns">
+            <button class="action-btn secondary" onclick="prevStep()">上一階</button>
+        </div>
+    </div>
+
+    <!-- 階段四：生命靈數模組（手機方塊按鍵盤） -->
+    <div class="step-content" id="step-4">
+        <h2 class="step-title">第四階：選擇你的生命靈數 (1-9)</h2>
+        <div class="grid-options cols-3">
+            <button class="square-btn" onclick="selectOption(4, '靈數 1', this)">1<span class="btn-desc">創始開創</span></button>
+            <button class="square-btn" onclick="selectOption(4, '靈數 2', this)">2<span class="btn-desc">合作平衡</span></button>
+            <button class="square-btn" onclick="selectOption(4, '靈數 3', this)">3<span class="btn-desc">創意表達</span></button>
+            <button class="square-btn" onclick="selectOption(4, '靈數 4', this)">4<span class="btn-desc">穩定架構</span></button>
+            <button class="square-btn" onclick="selectOption(4, '靈數 5', this)">5<span class="btn-desc">自由變革</span></button>
+            <button class="square-btn" onclick="selectOption(4, '靈數 6', this)">6<span class="btn-desc">大愛照料</span></button>
+            <button class="square-btn" onclick="selectOption(4, '靈數 7', this)">7<span class="btn-desc">內省真理</span></button>
+            <button class="square-btn" onclick="selectOption(4, '靈數 8', this)">8<span class="btn-desc">權威豐盛</span></button>
+            <button class="square-btn" onclick="selectOption(4, '靈數 9', this)">9<span class="btn-desc">慈悲圓滿</span></button>
+        </div>
+        <div class="nav-btns">
+            <button class="action-btn secondary" onclick="prevStep()">上一階</button>
+        </div>
+    </div>
+
+    <!-- 結果展示頁面 -->
+    <div class="step-content" id="step-result">
+        <h2 class="step-title">🎯 您的爬樓梯靈性模組結果</h2>
+        <div class="result-card">
+            <div class="result-title">模組綜合配置</div>
+            <div class="result-text" id="res-config">載入中...</div>
+        </div>
+        <div class="result-card">
+            <div class="result-title">爬樓梯運勢導引</div>
+            <div class="result-text" id="res-advice">載入中...</div>
+        </div>
+        <div class="nav-btns">
+            <button class="action-btn" onclick="resetEngine()">重新爬樓梯</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentStep = 1;
+    const userData = {
+        blood: null,
+        hierarchy: null,
+        zodiac: null,
+        lifeNumber: null
+    };
+
+    function selectOption(step, value, element) {
+        // 記錄選擇
+        if(step === 1) userData.blood = value;
+        if(step === 2) userData.hierarchy = value;
+        if(step === 3) userData.zodiac = value;
+        if(step === 4) userData.lifeNumber = value;
+
+        // UI選取狀態切換
+        const parent = element.parentElement;
+        parent.querySelectorAll('.square-btn').forEach(btn => btn.classList.remove('selected'));
+        element.classList.add('selected');
+
+        // 自動跳轉下一階
+        setTimeout(() => {
+            if(currentStep < 4) {
+                currentStep++;
+                updateStepUI();
+            } else {
+                // 到達頂端，顯示結果
+                currentStep = 5;
+                updateStepUI();
+                generateResult();
+            }
+        }, 300);
+    }
+
+    function prevStep() {
+        if(currentStep > 1) {
+            currentStep--;
+            updateStepUI();
+        }
+    }
+
+    function updateStepUI() {
+        // 更新進度條
+        for(let i = 1; i <= 4; i++) {
+            const stepEl = document.getElementById(`s${i}`);
+            if(i <= currentStep && currentStep <= 4) {
+                stepEl.classList.add('active');
+            } else if(currentStep === 5) {
+                stepEl.classList.add('active');
+            } else {
+                stepEl.classList.remove('active');
+            }
+        }
+
+        // 切換區塊顯示
+        document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+        if(currentStep <= 4) {
+            document.getElementById(`step-${currentStep}`).classList.add('active');
+        } else {
+            document.getElementById(`step-result`).classList.add('active');
+        }
+    }
+
+    function generateResult() {
+        document.getElementById('res-config').innerHTML = `
+            血型設定：<b>${userData.blood}</b><br>
+            排行設定：<b>${userData.hierarchy}</b><br>
+            星座設定：<b>${userData.zodiac}</b><br>
+            靈數設定：<b>${userData.lifeNumber}</b>
+        `;
+        
+        document.getElementById('res-advice').innerHTML = 
+            `透過「${userData.blood}」的行動核心，結合「${userData.hierarchy}」在生活環境中的定位，疊加「${userData.zodiac}」的能量頻率與「${userData.lifeNumber}」的靈魂天賦，您當前的爬樓梯階段正處於突破舒適圈的關鍵階梯。善用您的獨特模組優勢，每一步都能穩健登頂！`;
+    }
+
+    function resetEngine() {
+        currentStep = 1;
+        userData.blood = null;
+        userData.hierarchy = null;
+        userData.zodiac = null;
+        userData.lifeNumber = null;
+        document.querySelectorAll('.square-btn').forEach(btn => btn.classList.remove('selected'));
+        updateStepUI();
+    }
+</script>
+
+</body>
+</html>
