@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>文字雷電：藍光休閒版</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background-color: #030712;
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: "Noto Serif TC", "DFKai-SB", serif;
+            overflow: hidden;
+        }
+        .info {
+            margin-bottom: 6px;
+            font-size: 12px;
+            color: #38bdf8;
+            letter-spacing: 1px;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+        canvas {
+            border: 2px solid #0ea5e9;
+            box-shadow: 0 0 40px rgba(14, 165, 233, 0.5);
+            background: radial-gradient(circle at center, #0c4a6e 0%, #020617 100%);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">【輕鬆操作】← → 移動 | 空白鍵發射 | [Z] 離子護盾 | [X] 區域超載 | [C] 磁場聚能</div>
+    <canvas id="gameCanvas" width="520" height="580"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let player = { 
+            x: 235, 
+            y: 510, 
+            w: 36, 
+            h: 36, 
+            speed: 6.5, 
+            powerLevel: 1,
+            score: 0,
+            shields: 3, // 護盾增加到 3
+            energy: 0,
+            clearedWaves: 0,
+            speedMultiplier: 1.0,
+            isInvulnerable: false,
+            invulnerableTimer: 0
+        };
+        
+        let playerBullets = [];
+        let enemyBullets = [];
+        let enemies = [];
+        let powerups = [];
+        let boss = null;
+        let particles = [];
+        let stars = [];
+        let gameTime = 0;
+        let gameOver = false;
+        let keys = {};
+
+        for(let i=0; i<40; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2 + 1,
+                speed: Math.random() * 1.5 + 0.5
+            });
+        }
+
+        const tierData = [
+            { name: '藍光散彈', char: '⚡', color: '#38bdf8' },
+            { name: '離子雷射', char: '陣', color: '#0ea5e9' },
+            { name: '粒子風暴', char: '轟', color: '#7dd3fc' },
+            { name: '毀滅光束', char: '極', color: '#bae6fd' }
+        ];
+
+        function initWave() {
+            enemies = [];
+            boss = null;
+            
+            if ((player.clearedWaves + 1) % 3 === 0) {
+                boss = {
+                    x: 180,
+                    y: 60,
+                    w: 160,
+                    h: 60,
+                    hp: 30 + player.clearedWaves * 6, // 降低 Boss 血量
+                    maxHp: 30 + player.clearedWaves * 6,
+                    char: '【將】',
+                    dir: 1.2,
+                    shootCycleTimer: 0,
+                    rageMode: false
+                };
+                return;
+            }
+
+            const formation = [
+                ['車', '馬', '象', '士', '將', '士', '象', '馬', '車'],
+                [null, '炮', null, null, null, null, null, '炮', null],
+                ['卒', null, '卒', null, '卒', null, '卒', null, '卒']
+            ];
+
+            const startX = 35;
+            const startY = 40;
+            const colWidth = 50;
+            const rowHeight = 35;
+
+            formation.forEach((row, rIdx) => {
+                row.forEach((char, cIdx) => {
+                    if (char !== null) {
+                        let maxHp = char === '將' ? 3 : (char === '車' || char === '炮' ? 2 : 1); // 降低敵人血量
+                        enemies.push({
+                            origX: startX + cIdx * colWidth,
+                            origY: startY + rIdx * rowHeight,
+                            x: startX + cIdx * colWidth,
+                            y: startY + rIdx * rowHeight,
+                            w: 38,
+                            h: 30,
+                            alive: true,
+                            char: char,
+                            hp: maxHp,
+                            maxHp: maxHp,
+                            shootPhase: Math.floor(Math.random() * 4),
+                            shootTimer: Math.random() * 60
+                        });
+                    }
+                });
+            });
+        }
+        initWave();
+
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'KeyZ' && player.energy >= 25) {
+                player.energy -= 25;
+                player.isInvulnerable = true;
+                player.invulnerableTimer = 210; // 更長的無敵時間 (3.5秒)
+                triggerExplosion(player.x + 18, player.y + 18, '#38bdf8', 25);
+            }
+            if (e.code === 'KeyX' && player.energy >= 50) {
+                player.energy -= 50;
+                enemyBullets = [];
+                enemies.forEach(e => { if(e.alive) e.hp -= 2; });
+                if(boss) boss.hp -= 12;
+                triggerExplosion(canvas.width/2, canvas.height/2, '#0ea5e9', 50);
+            }
+            if (e.code === 'KeyC' && player.energy >= 10) {
+                player.energy -= 10;
+                powerups.forEach(p => { p.magnetized = true; });
+            }
+        });
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        function triggerExplosion(x, y, color, count = 12) {
+            for(let p=0; p<count; p++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 25,
+                    color: color
+                });
+            }
+        }
+
+        function update() {
+            if (gameOver) return;
+            gameTime++;
+
+            stars.forEach(s => {
+                s.y += s.speed;
+                if (s.y > canvas.height) s.y = 0;
+            });
+
+            if (player.isInvulnerable) {
+                player.invulnerableTimer--;
+                if (player.invulnerableTimer <= 0) player.isInvulnerable = false;
+            }
+
+            if ((keys['ArrowLeft'] || keys['KeyA']) && player.x > 15) player.x -= player.speed;
+            if ((keys['ArrowRight'] || keys['KeyD']) && player.x < canvas.width - player.w - 15) player.x += player.speed;
+
+            if (keys['Space']) {
+                if (!player.cooldown) {
+                    if (player.powerLevel === 1) {
+                        playerBullets.push({ x: player.x + 15, y: player.y, w: 6, h: 16, speed: 10 });
+                    } else if (player.powerLevel === 2) {
+                        playerBullets.push({ x: player.x + 4, y: player.y, w: 6, h: 16, speed: 11 });
+                        playerBullets.push({ x: player.x + 26, y: player.y, w: 6, h: 16, speed: 11 });
+                    } else if (player.powerLevel === 3) {
+                        playerBullets.push({ x: player.x + 15, y: player.y, w: 6, h: 18, speed: 12 });
+                        playerBullets.push({ x: player.x - 2, y: player.y + 6, w: 6, h: 18, speed: 12, vx: -0.8 });
+                        playerBullets.push({ x: player.x + 32, y: player.y + 6, w: 6, h: 18, speed: 12, vx: 0.8 });
+                    } else {
+                        playerBullets.push({ x: player.x + 15, y: player.y, w: 8, h: 20, speed: 13 });
+                        playerBullets.push({ x: player.x - 6, y: player.y + 4, w: 8, h: 20, speed: 13, vx: -1.5 });
+                        playerBullets.push({ x: player.x + 36, y: player.y + 4, w: 8, h: 20, speed: 13, vx: 1.5 });
+                    }
+                    player.cooldown = true;
+                    setTimeout(() => player.cooldown = false, 95);
+                }
+            }
+
+            for (let i = playerBullets.length - 1; i >= 0; i--) {
+                let b = playerBullets[i];
+                b.y -= b.speed;
+                if (b.vx) b.x += b.vx;
+                if (b.y < 0) playerBullets.splice(i, 1);
+            }
+
+            for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                let eb = enemyBullets[i];
+                eb.x += eb.vx;
+                eb.y += eb.vy;
+                if (eb.y > canvas.height || eb.y < 0 || eb.x < 0 || eb.x > canvas.width) {
+                    enemyBullets.splice(i, 1);
+                }
+            }
+
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                let p = powerups[i];
+                if (p.magnetized) {
+                    let dx = player.x - p.x;
+                    let dy = player.y - p.y;
+                    let dist = Math.hypot(dx, dy);
+                    p.x += (dx / dist) * 6;
+                    p.y += (dy / dist) * 6;
+                } else {
+                    p.y += 2.2;
+                }
+                if (p.x + p.w > player.x && p.x < player.x + player.w && p.y + p.h > player.y && p.y < player.y + player.h) {
+                    player.energy = Math.min(100, player.energy + 30);
+                    player.score += 150;
+                    powerups.splice(i, 1);
+                } else if (p.y > canvas.height) {
+                    powerups.splice(i, 1);
+                }
+            }
+
+            // 大幅降低敵人下壓速度與提速幅度
+            let descentSpeed = (0.02 + (gameTime * 0.000015)) * player.speedMultiplier;
+
+            if (boss) {
+                boss.x += boss.dir * 1.5;
+                if (boss.x > 340 || boss.x < 20) boss.dir *= -1;
+                boss.shootCycleTimer++;
+                
+                if (boss.shootCycleTimer > 80) { // 放慢 Boss 發射頻率
+                    for (let a = -1; a <= 1; a += 2) {
+                        let angle = Math.PI / 2 + a * 0.2;
+                        enemyBullets.push({
+                            x: boss.x + boss.w / 2,
+                            y: boss.y + boss.h,
+                            w: 7,
+                            h: 12,
+                            vx: Math.cos(angle) * 2.4, // 降低彈幕速度
+                            vy: Math.sin(angle) * 2.4
+                        });
+                    }
+                    if (boss.shootCycleTimer > 160) boss.shootCycleTimer = 0;
+                }
+            } else {
+                enemies.forEach((e, idx) => {
+                    if (!e.alive) return;
+                    e.origY += descentSpeed;
+                    let t = gameTime * 0.02;
+                    e.x = e.origX + Math.sin(t) * 15;
+                    e.y = e.origY;
+
+                    e.shootTimer++;
+                    let triggerInterval = 220 + (e.shootPhase * 45) + (idx % 4) * 35; // 敵人射擊間隔拉長，更安全
+                    if (e.shootTimer > triggerInterval) {
+                        enemyBullets.push({
+                            x: e.x + e.w / 2,
+                            y: e.y + e.h,
+                            w: 6,
+                            h: 12,
+                            vx: 0,
+                            vy: 2.5 // 降低敵彈速度
+                        });
+                        e.shootTimer = 0;
+                    }
+                });
+            }
+
+            playerBullets.forEach((b, bIdx) => {
+                if (boss) {
+                    if (b.x + b.w > boss.x && b.x < boss.x + boss.w && b.y < boss.y + boss.h && b.y + b.h > boss.y) {
+                        boss.hp--;
+                        playerBullets.splice(bIdx, 1);
+                        triggerExplosion(b.x, b.y, '#38bdf8', 6);
+                        if (boss.hp <= 0) {
+                            player.score += 2000;
+                            player.clearedWaves++;
+                            player.speedMultiplier += 0.001;
+                            triggerExplosion(boss.x + 80, boss.y + 30, '#ffffff', 30);
+                            initWave();
+                        }
+                    }
+                } else {
+                    enemies.forEach(e => {
+                        if (e.alive && b.x + b.w > e.x && b.x < e.x + e.w && b.y < e.y + e.h && b.y + b.h > e.y) {
+                            e.hp--;
+                            playerBullets.splice(bIdx, 1);
+                            triggerExplosion(b.x, b.y, '#38bdf8', 6);
+
+                            if (e.hp <= 0) {
+                                e.alive = false;
+                                player.score += e.char === '將' ? 400 : 80;
+                                triggerExplosion(e.x + 15, e.y + 15, '#38bdf8', 15);
+
+                                if (Math.random() < 0.5) { // 提高掉落率
+                                    powerups.push({ x: e.x + 10, y: e.y, w: 16, h: 16, magnetized: false });
+                                }
+
+                                if (player.score % 350 === 0 && player.powerLevel < 4) {
+                                    player.powerLevel++;
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+
+            enemyBullets.forEach((eb, ebIdx) => {
+                if (eb.x + eb.w > player.x && eb.x < player.x + player.w && eb.y + eb.h > player.y && eb.y < player.y + player.h) {
+                    enemyBullets.splice(ebIdx, 1);
+                    if (!player.isInvulnerable) {
+                        if (player.shields > 0) {
+                            player.shields--;
+                            player.isInvulnerable = true;
+                            player.invulnerableTimer = 140;
+                            triggerExplosion(player.x + 18, player.y + 18, '#38bdf8', 20);
+                        } else {
+                            triggerExplosion(player.x + 18, player.y + 18, '#ffffff', 30);
+                            gameOver = true;
+                        }
+                    }
+                }
+            });
+
+            if (!boss && enemies.filter(e => e.alive).length === 0) {
+                player.clearedWaves++;
+                player.speedMultiplier += 0.001;
+                initWave();
+            }
+
+            if (!boss) {
+                enemies.forEach(e => {
+                    if (e.alive && e.y + e.h >= player.y) gameOver = true;
+                });
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let pt = particles[i];
+                pt.x += pt.vx;
+                pt.y += pt.vy;
+                pt.life--;
+                if (pt.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function draw() {
+            let activeTier = tierData[Math.min(player.powerLevel - 1, 3)];
+
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#38bdf8';
+            stars.forEach(s => {
+                ctx.globalAlpha = 0.4;
+                ctx.fillRect(s.x, s.y, s.size, s.size);
+            });
+            ctx.globalAlpha = 1.0;
+
+            if (!gameOver && (!player.isInvulnerable || Math.floor(gameTime / 4) % 2 === 0)) {
+                ctx.fillStyle = activeTier.color;
+                ctx.font = 'bold 32px "Noto Serif TC", serif';
+                ctx.textAlign = 'left';
+                ctx.shadowColor = activeTier.color;
+                ctx.shadowBlur = 20;
+                ctx.fillText(activeTier.char, player.x + 2, player.y + 28);
+                ctx.shadowBlur = 0;
+            }
+
+            powerups.forEach(p => {
+                ctx.fillStyle = '#38bdf8';
+                ctx.shadowColor = '#38bdf8';
+                ctx.shadowBlur = 10;
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                ctx.shadowBlur = 0;
+            });
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.shadowColor = '#38bdf8';
+            ctx.shadowBlur = 8;
+            playerBullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 6;
+            enemyBullets.forEach(eb => ctx.fillRect(eb.x, eb.y, eb.w, eb.h));
+            ctx.shadowBlur = 0;
+
+            particles.forEach(pt => {
+                ctx.fillStyle = pt.color;
+                ctx.fillRect(pt.x, pt.y, 3, 3);
+            });
+
+            if (boss) {
+                ctx.fillStyle = '#f43f5e';
+                ctx.font = 'bold 36px "Noto Serif TC", serif';
+                ctx.shadowColor = '#f43f5e';
+                ctx.shadowBlur = 25;
+                ctx.fillText(boss.char, boss.x + 35, boss.y + 42);
+                ctx.shadowBlur = 0;
+
+                ctx.fillStyle = '#334155';
+                ctx.fillRect(160, 20, 200, 8);
+                ctx.fillStyle = '#f43f5e';
+                ctx.fillRect(160, 20, (boss.hp / boss.maxHp) * 200, 8);
+            } else {
+                enemies.forEach(e => {
+                    if (!e.alive) return;
+                    ctx.fillStyle = e.char === '將' ? '#f43f5e' : '#fb923c';
+                    ctx.font = 'bold 24px "Noto Serif TC", serif';
+                    ctx.fillText(e.char, e.x + 4, e.y + 22);
+                });
+            }
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = '11px monospace';
+            ctx.fillText(`分數:${player.score} | 護盾:${player.shields} | 能量:${player.energy}% | 關卡:${player.clearedWaves + 1}`, 10, 26);
+            ctx.fillText(`[Z]護盾(25) [X]超載(50) [C]磁吸(10)`, 10, 44);
+
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(2, 6, 23, 0.95)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#f43f5e';
+                ctx.font = '22px "Noto Serif TC", serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('【挑戰結束】再接再厲', canvas.width / 2, canvas.height / 2 - 15);
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '12px monospace';
+                ctx.fillText('按 F5 重新開始', canvas.width / 2, canvas.height / 2 + 15);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
