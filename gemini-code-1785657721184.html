@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACC x AOE 貓咪情緒盲盒抽卡引擎</title>
+    <style>
+        :root {
+            --theme-primary: #ff598f;
+            --theme-light: #ff85a1;
+            --theme-glow: rgba(255, 89, 143, 0.25);
+            --theme-shadow: rgba(255, 89, 143, 0.6);
+        }
+        * { box-sizing: border-box; }
+        body {
+            background-color: #020205;
+            color: #f3f4f6;
+            font-family: "Courier New", Courier, monospace, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px 0;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: radial-gradient(var(--theme-glow) 1px, transparent 0);
+            background-size: 25px 25px;
+            z-index: -1;
+            transition: background-image 0.5s ease;
+        }
+        .engine-container {
+            background: rgba(8, 8, 15, 0.96);
+            border: 2px solid var(--theme-primary);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 50px var(--theme-glow), inset 0 0 25px var(--theme-glow);
+            max-width: 760px;
+            width: 92%;
+            backdrop-filter: blur(15px);
+            position: relative;
+            transition: all 0.4s ease;
+            text-align: center;
+        }
+        .engine-container::after {
+            content: "EMOTIONAL_CAT_BLINDBOX_v60";
+            position: absolute;
+            top: -12px;
+            right: 20px;
+            background: var(--theme-primary);
+            color: #fff;
+            font-size: 10px;
+            padding: 2px 8px;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        .engine-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 12px;
+            color: var(--theme-light);
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        /* 四張貓咪背面盲盒牆 */
+        .blindbox-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .box-card {
+            background: rgba(15, 15, 25, 0.9);
+            border: 2px dashed var(--theme-primary);
+            padding: 25px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px var(--theme-glow);
+        }
+        .box-card:hover {
+            background: var(--theme-primary);
+            color: #fff;
+            transform: translateY(-4px);
+            box-shadow: 0 0 20px var(--theme-shadow);
+            border-style: solid;
+        }
+        .box-title {
+            font-size: 16px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .box-sub {
+            font-size: 11px;
+            opacity: 0.8;
+            letter-spacing: 1px;
+        }
+        /* 結果展示螢幕 */
+        .result-screen {
+            background: rgba(2, 2, 5, 0.85);
+            border: 2px solid var(--theme-primary);
+            padding: 25px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 15px var(--theme-glow);
+            white-space: pre-line;
+        }
+        .card-faction {
+            font-size: 11px;
+            letter-spacing: 3px;
+            color: var(--theme-light);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .card-title {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            text-shadow: 0 0 10px var(--theme-primary);
+        }
+        .card-desc {
+            font-size: 13px;
+            line-height: 1.7;
+            color: #d1d5db;
+            max-width: 600px;
+        }
+        .reset-btn {
+            background-color: #05050a;
+            border: 2px solid var(--theme-primary);
+            color: var(--theme-light);
+            padding: 12px 25px;
+            font-size: 13px;
+            font-family: inherit;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 0 15px var(--theme-glow);
+            transition: all 0.2s ease;
+            letter-spacing: 2px;
+            display: none;
+        }
+        .reset-btn:hover {
+            background-color: var(--theme-primary);
+            color: #fff;
+            box-shadow: 0 0 25px var(--theme-shadow);
+        }
+        .status-badge {
+            background: var(--theme-glow);
+            padding: 4px 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="engine-container">
+    <div class="engine-header">
+        <span id="engineStage">// 模式 : 貓咪情緒盲盒</span>
+        <span class="status-badge" id="engineTimer">⚡ 點擊背面，領取情緒價值</span>
+    </div>
+
+    <div style="font-size: 22px; font-weight: 900; letter-spacing: 4px; margin-bottom: 12px; text-shadow: 0 0 10px var(--theme-primary);">
+        ACC x AOE 貓咪情緒盲盒抽卡牆
+    </div>
+
+    <!-- 抽獎結果顯示區 -->
+    <div class="result-screen" id="resultScreen">
+        <div class="card-faction" id="cardFaction">SYSTEM READY</div>
+        <div class="card-title" id="cardTitle">請憑直覺點選下方任一貓咪盲盒背面</div>
+        <div class="card-desc" id="cardDesc">不管你現在心情怎樣、卡在什麼鳥事上，抽下去，讓貓咪們給你最強的同理與心靈爆擊！</div>
+    </div>
+
+    <!-- 貓咪背面盲盒按鈕牆 -->
+    <div class="blindbox-grid" id="blindboxGrid">
+        <div class="box-card" onclick="drawBlindBox('dinocat')">
+            <div class="box-title">🔥 恐龍貓背影</div>
+            <div class="box-sub">DinoCat 盲盒</div>
+        </div>
+        <div class="box-card" onclick="drawBlindBox('devil')">
+            <div class="box-title">⚡ 小惡魔貓背影</div>
+            <div class="box-sub">Little Devil Cat 盲盒</div>
+        </div>
+        <div class="box-card" onclick="drawBlindBox('magic')">
+            <div class="box-title">🔮 魔法學院貓娘背影</div>
+            <div class="box-sub">Cat Girl 盲盒</div>
+        </div>
+        <div class="box-card" onclick="drawBlindBox('sakura')">
+            <div class="box-title">🌸 櫻花貓背影</div>
+            <div class="box-sub">Sakura Cat 盲盒</div>
+        </div>
+    </div>
+
+    <button class="reset-btn" id="resetBtn" onclick="resetEngine()">🔄 再抽一次盲盒</button>
+</div>
+
+<script>
+    // 60+ 張貓咪原創牌卡資料庫（已注入滿滿的情緒價值與直白痛快解說）
+    const deck = {
+        dinocat: [
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "01. 原始直覺重裝甲", desc: "別管別人怎麼說了！你心裡其實早就知道答案。把外面的雜音全部遮蔽，今天你最大，想怎樣就怎樣，給自己穿上無敵防護罩！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "02. 遠古足跡踏破", desc: "那些卡住你的鳥事、不順眼的規則，直接一腳踩過去！不需要跟迂迴的人耗費心力，用你的絕對實力輾壓過去就對了！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "03. 尾巴掃蕩防禦網", desc: "最近是不是扛太多不屬於你的壓力了？這張牌挺你：直接把爛人爛事掃出你的生活圈，你不需要對所有人負責！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "04. 巨獸覺醒咆哮", desc: "氣死就不要忍！憋在心裡內傷幹嘛？恐龍貓挺你直接把不滿吼出來，讓大家知道你不是好惹的！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "05. 堅硬鱗片沉澱", desc: "今天累了就直接躺平，誰來約都不去！縮回自己的安全區，天塌下來都有別人頂著，先好好愛自己最重要。", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "06. 核心地心引力", desc: "不管外面風雨多大、別人怎麼急，你就是定海神針。穩住，你沒有做錯，照你自己的節奏走就贏了一半！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "07. 掠食者狙擊視線", desc: "別把精神分散在無聊的人事物上了。今天只要盯緊你最想拿下的那個目標，其餘的通通直接忽略！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "08. 熔岩裂谷突進", desc: "雖然現在環境很硬、挑戰很大，但你骨子裡就是個狠角色。殺出一條血路給他們看，你絕對辦得到！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "09. 巨爪深耕佈局", desc: "不用急著跟別人比快，你默默耕耘的實力大家都在看。穩扎穩打，最後收割成果的絕對是你！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "10. 原始野性釋放", desc: "想吃就吃、想睡就睡、想做什麽就去搞！拋開那些世俗眼光和罪惡感，今天放縱自己一次又何妨？", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "11. 巨石陣防衛壁", desc: "對那些愛碎念、消耗你能量的人直接開啟防禦模式。你沒有義務讓每個人都滿意，開心最重要！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "12. 暴龍級突破力", desc: "遇到高牆阻擋？撞碎它！你比你想像中還要強悍百倍，不要懷疑自己的爆發力！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "13. 遠古化石永恆", desc: "你過去吃過的苦、踩過的坑，通通都化作你現在最硬的底氣。你超棒的，給自己拍拍手！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "14. 烈焰尾擊反撲", desc: "之前對你酸、扯你後腿的人，今天直接用實績狠狠打他們的臉！爽快反擊的時刻到了！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "15. 霸主沈睡蓄力", desc: "低調不代表沒實力。你現在的沈默是在憋大招，等時機一到，嚇死所有人！", theme: "dinocat" },
+            { faction: "🔥 DinoCat 恐龍貓象限", title: "16. 荒野絕對領域", desc: "自己的地盤自己作主！誰都別想來對你的生活指手畫腳，關起門來你就是國王！", theme: "dinocat" }
+        ],
+        devil: [
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "17. 混沌變數突襲", desc: "人生已經夠無聊了，今天就是要故意搞點小叛逆、製造一點驚喜！生活嘛，好玩最重要！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "18. 鏡像惡作劇對調", desc: "那些讓你頭痛的人，如果換作是你會怎麼搞？換個角度看，其實整件事荒謬到讓人想笑。", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "19. 暗夜戲謔笑聲", desc: "遇到北爛的事情先笑再說！人生苦短，別拿別人的智商來懲罰自己的情緒，笑看一切就贏了！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "20. 幻影分身迷陣", desc: "不用對所有人老實交底。適度保持神秘感和調皮，讓那些愛打聽的人自己去猜個夠吧！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "21. 惡魔契約簽署", desc: "想挑戰就去玩大一點！別怕失敗，人生就是要充滿刺激跟意料之外的樂趣才帶勁！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "22. 懸崖邊緣試探", desc: "乖乖牌當久了也會累，今天就是要踩一下線、打破老舊框架，爽啦！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "23. 陷阱與反轉局", desc: "覺得快被整死或局勢不妙嗎？別慌，小惡魔貓來幫你翻桌了！準備看好戲吧！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "24. 搗蛋鬼閃現", desc: "苗頭不對立刻溜走！不需要跟爛泥巴戰場糾纏，轉頭去搞更有趣的事！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "25. 叛逆靈魂覺醒", desc: "誰規定一定要照別人的規則走？今天就是要當個可愛又迷人的反派角色！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "26. 禁忌箱子開啟", desc: "越不能做的事越想做？去吧！人生很多精彩的突破，都是從打破常規開始的！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "27. 戲謔磁場干擾", desc: "面對那些一本正經講幹話的人，用調侃和幽默直接把他們的氣場全場瓦解！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "28. 夜行貓瞳閃爍", desc: "誰在背後搞小動作、誰是真心誰是假意，你其實心裡跟明鏡一樣。笑而不語，看他們表演就好。", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "29. 惡魔尾巴勾引", desc: "今天魅力值直接點滿！把眼光吸引過來，主導權現在全掌握在你手上！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "30. 瘋狂實驗室爆炸", desc: "計畫趕不上變化？那就炸掉重來！反正你有的是創意跟本錢，好玩就好！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "31. 奇襲不對稱作戰", desc: "打不過就不要硬拼，繞旁邊偷襲、用巧勁取勝，贏得漂亮才叫爽！", theme: "devil" },
+            { faction: "⚡ Little Devil Cat 小惡魔貓象限", title: "32. 迷宮解構狂歡", desc: "越混亂、越複雜的局面，你反而越興奮。享受這種大破大立的快感吧！", theme: "devil" }
+        ],
+        magic: [
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "33. 矩陣符文解析", desc: "腦袋卡住的時候，別慌。貓娘幫你施個法，把雜亂無章的思緒瞬間變成超清晰的邏輯，你超聰明的啦！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "34. 元素結界展開", desc: "今天外面的鳥事通通隔離在外！展開專屬防護罩，這裏只有你的一片清淨與安寧。", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "35. 占星水晶球透視", desc: "眼光放遠一點，現在這件讓你煩心的小事，三個月後回頭看根本不算什麼。你正在走一條大格局的路！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "36. 祕術公式重構", desc: "卡關只是因為方法不對，換個公式就好了嘛！你的聰明才智絕對能輕鬆破解這題。", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "37. 貓耳雷達波捕捉", desc: "你的直覺準到發燙！相信自己的第一直覺，覺得不對勁的地方，雷達響了就趕快閃人！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "38. 元素能量導引", desc: "你會的技能、你累積的本事，現在全部都能派上用場。大展身手的時刻到囉！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "39. 咒語自動化詠唱", desc: "把繁瑣的事交給系統或流程去跑，今天對自己好一點，當個翹腳喝咖啡的魔法師！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "40. 古籍圖書館深潛", desc: "你腦袋裡裝的智慧跟經驗就是最強的武器。遇到問題？翻一下你的回憶庫，答案早就有了！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "41. 靈動法杖定錨", desc: "選項太多有選擇障礙嗎？貓娘幫你指路：選那個讓你眼睛發亮、最想玩的就對了！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "42. 魔法陣奇點爆發", desc: "靈感大爆發的時刻來了！擋都擋不住，趕快把腦中的神仙點子通通記錄下來！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "43. 星象儀精密校準", desc: "你對品質的堅持沒有錯！雖然辛苦，但精益求精的成品拿出來絕對驚豔全場。", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "44. 靈魂共鳴共振", desc: "今天會遇到頻率超合的靈魂伴侶或夥伴，磁場對了，講話做事就是舒服！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "45. 秘法防護壁鎖定", desc: "把你的能量跟心血鎖好，不要隨便施捨給不懂得珍惜的人。保護好自己最重要！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "46. 元素光譜切換器", desc: "你是個天才變色龍！不管丟到什麼環境都能立刻切換模式生存下來，超強的適應力！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "47. 貓娘先知預言", desc: "你心裡預感會發生好事對吧？沒錯，相信它，好運正在全速奔向你的路上！", theme: "magic" },
+            { faction: "🔮 Magic Academy Cat Girl 魔法學院貓娘象限", title: "48. 終極鍊金術收束", desc: "把過去所有的零碎廢文和黑歷史通通煉化成黃金大作！你太厲害了，給自己一個大擁抱！", theme: "magic" }
+        ],
+        sakura: [
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "49. 櫻花紛飛綻放", desc: "苦盡甘來！屬於你的櫻花季全面盛開，今天走在路上都要發光，接受大家的讚美吧！", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "50. 季節循環重啟", desc: "把過去的爛事和遺憾全留在昨天。今天開始是全新的一季，深呼吸，迎接好運！", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "51. 微風戰術定錨", desc: "不用跟大環境硬幹，順著風向輕輕一推，事情就會無敵順利。今天當個幸運的順風車手！", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "52. 複利開花結果", desc: "你之前的默默努力和委屈，老天爺全都看到了。收割甜美果實的時刻到了，盡情享受吧！", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "53. 浪漫美學儀式感", desc: "今天對自己好一點！吃好吃的、看好看的，把生活過得像一首詩，你值得最美好的對待。", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "54. 落櫻繽紛沈澱", desc: "花開花落本是常態，錯過的人或事就讓它隨風去。沈澱過後，你將長出更美的姿態。", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "55. 晨露貓爪印記", desc: "你的獨特風格無人能敵！大膽去做自己，全世界只有你能留下這種專屬印記！", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "56. 滿開時刻高歌", desc: "不要害羞！今天就是你的主場，站上舞台接受掌聲，你本來就該這麼耀眼！", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "57. 枝頭春意萌動", desc: "超棒的新機會、新戀情或新點子正在悄悄發芽。準備好迎接心動的感覺了嗎？", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "58. 和風雅緻共鳴", desc: "今天內心會前所未有的平和與舒服。泡杯茶、放空一下，享受這完美的寧靜時刻。", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "59. 花瓣護盾展開", desc: "用溫柔而堅定的姿態把惡意隔絕在外。你的善良只留給懂的人，別跟不值得的人生氣。", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "60. 永恆櫻雪漫天", desc: "你的影響力正在擴大，散發出去的正能量會繞一圈回到你身上。你超棒的啦！", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "61. 春日暖陽覺醒", desc: "陰霾通通退散！今天陽光普照，心情跟著晴空萬里，做什麼都特別順心！", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "62. 花徑漫步隨心", desc: "放慢腳步，今天不用衝第一名也沒關係。隨心所欲地走走，沿途風景超級美！", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "63. 繁花盛宴收束", desc: "漂亮的收尾！把手邊的專案完美結案，今晚給自己一個大大的獎勵吧！", theme: "sakura" },
+            { faction: "🌸 Sakura Cat 櫻花貓象限", title: "64. 櫻貓奇蹟定錨", desc: "全場最高級的超強大吉！抽到這張牌代表你今天被宇宙寵上天，想幹嘛就去幹嘛，必勝！", theme: "sakura" }
+        ]
+    };
+
+    const themes = {
+        dinocat: { primary: "#e63946", light: "#ff6b6b", glow: "rgba(230, 57, 70, 0.3)", shadow: "rgba(230, 57, 70, 0.7)" },
+        devil: { primary: "#7209b7", light: "#b5179e", glow: "rgba(114, 9, 183, 0.3)", shadow: "rgba(114, 9, 183, 0.7)" },
+        magic: { primary: "#3a86ff", light: "#48cae4", glow: "rgba(58, 134, 255, 0.3)", shadow: "rgba(58, 134, 255, 0.7)" },
+        sakura: { primary: "#ff598f", light: "#ff85a1", glow: "rgba(255, 89, 143, 0.3)", shadow: "rgba(255, 89, 143, 0.7)" }
+    };
+
+    function setTheme(key) {
+        let t = themes[key] || themes.sakura;
+        let root = document.documentElement;
+        root.style.setProperty('--theme-primary', t.primary);
+        root.style.setProperty('--theme-light', t.light);
+        root.style.setProperty('--theme-glow', t.glow);
+        root.style.setProperty('--theme-shadow', t.shadow);
+    }
+
+    function drawBlindBox(category) {
+        let list = deck[category];
+        let randomCard = list[Math.floor(Math.random() * list.length)];
+        
+        setTheme(randomCard.theme);
+
+        // 更新畫面，給滿情緒價值
+        document.getElementById('cardFaction').textContent = "【盲盒開箱解鎖】 " + randomCard.faction;
+        document.getElementById('cardTitle').textContent = "✨ " + randomCard.title;
+        document.getElementById('cardDesc').textContent = randomCard.desc + "\n\n💖 【貓咪悄悄話】：把這張牌帶在心裡，今天不管發生什麼事，你都是最棒的！";
+
+        // 隱藏盲盒牆，顯示重置按鈕
+        document.getElementById('blindboxGrid').style.display = 'none';
+        document.getElementById('resetBtn').style.display = 'inline-block';
+        document.getElementById('engineTimer').textContent = "🎯 情緒價值已拉滿！";
+    }
+
+    function resetEngine() {
+        setTheme('sakura');
+        document.getElementById('cardFaction').textContent = "SYSTEM READY";
+        document.getElementById('cardTitle').textContent = "請憑直覺點選下方任一貓咪盲盒背面";
+        document.getElementById('cardDesc').textContent = "不管你現在心情怎樣、卡在什麼鳥事上，抽下去，讓貓咪們給你最強的同理與心靈爆擊！";
+        
+        document.getElementById('blindboxGrid').style.display = 'grid';
+        document.getElementById('resetBtn').style.display = 'none';
+        document.getElementById('engineTimer').textContent = "⚡ 點擊背面，領取情緒價值";
+    }
+</script>
+
+</body>
+</html>
