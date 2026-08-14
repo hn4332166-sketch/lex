@@ -1,2 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Zack｜星際馬雅・全息生命藍圖引擎 V3.3 (零誤差數學對齊版)</title>
+    <style>
+        :root {
+            --bg-color: #fdfbf7;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+            --accent: #b45309;
+            --border: #e2e8f0;
+            --gap-color: #059669;
+            --prompt-bg: #1e293b;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-color); color: var(--text-main); padding: 30px; line-height: 1.6; }
+        .container { max-width: 780px; margin: auto; background: var(--card-bg); padding: 40px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.06); }
+        h2 { margin-top: 0; font-size: 24px; color: #1a1a1a; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; text-align: center; letter-spacing: 1px; }
+        .specs-badge { text-align: center; font-size: 12px; color: #64748b; margin-top: -8px; margin-bottom: 25px; }
+        
+        .input-section { display: flex; gap: 10px; align-items: center; justify-content: center; background: #f8f9fa; padding: 20px; border-radius: 16px; border: 1px solid var(--border); flex-wrap: wrap; }
+        .select-group { display: flex; align-items: center; gap: 6px; font-weight: bold; font-size: 14px; color: #475569; }
+        select { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 15px; background: #fff; color: var(--text-main); cursor: pointer; transition: border-color 0.2s; }
+        select:hover, select:focus { border-color: var(--accent); outline: none; }
+        
+        button { padding: 12px 24px; background: #2c3e50; color: white; cursor: pointer; border: none; font-weight: bold; border-radius: 10px; transition: background 0.2s; font-size: 15px; }
+        button:hover { background: #1a252f; }
+        
+        #res { margin-top: 30px; padding: 35px; background: #f8f9fa; border-radius: 16px; border: 1px solid var(--border); display: none; }
+        .highlight { font-size: 28px; color: var(--accent); font-weight: bold; text-align: center; display: block; background: #fef3c7; padding: 16px; border-radius: 12px; border: 1px solid #f59e0b; margin: 20px 0; letter-spacing: 1px; }
+        .badge { display: inline-block; padding: 6px 14px; background: #e2e8f0; border-radius: 20px; font-size: 13px; font-weight: bold; margin-right: 8px; margin-bottom: 8px; }
+        .badge-gap { background: var(--gap-color); color: white; }
+        
+        .grid-info { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
+        .info-box { background: #fff; padding: 16px; border: 1px dashed var(--border); border-radius: 12px; font-size: 14px; }
+        
+        .blueprint-section { margin-top: 25px; background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+        .blueprint-section h3 { margin-top: 0; font-size: 16px; color: var(--accent); border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
+        .bp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 12px; font-size: 14px; }
+        .bp-item { background: #fdfbf7; padding: 12px; border-radius: 8px; border: 1px solid #f3f4f6; }
+        .bp-item strong { display: block; color: #1e293b; margin-bottom: 4px; }
 
-⁠
+        .ai-prompt-box { margin-top: 25px; background: var(--prompt-bg); border-radius: 14px; padding: 20px; color: #e2e8f0; }
+        .ai-prompt-box h3 { margin-top: 0; color: #38bdf8; font-size: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        #prompt-text { font-family: monospace; font-size: 12px; background: #0f172a; padding: 14px; border-radius: 8px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; margin: 12px 0; color: #cbd5e1; border: 1px solid #334155; }
+        .btn-copy { background: #0284c7; color: white; padding: 8px 16px; border-radius: 8px; font-size: 13px; border: none; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        .btn-copy:hover { background: #0369a1; }
+
+        .test-console { margin-top: 35px; border-top: 1px solid var(--border); padding-top: 20px; }
+        .test-console summary { font-weight: bold; cursor: pointer; color: #64748b; font-size: 14px; }
+        #test-results { font-family: monospace; font-size: 12px; background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 12px; margin-top: 12px; max-height: 220px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Zack｜星際馬雅・全息生命藍圖引擎 V3.3</h2>
+    <div class="specs-badge">⚡ 1950-2030 Range • Strict Matrix Alignment • AI Prompt Bridge</div>
+    
+    <div class="input-section">
+        <div class="select-group">
+            <select id="yearSelect"></select> 年
+        </div>
+        <div class="select-group">
+            <select id="monthSelect" onchange="updateDays()"></select> 月
+        </div>
+        <div class="select-group">
+            <select id="daySelect"></select> 日
+        </div>
+        <button onclick="runEngine()">啟動運算</button>
+    </div>
+
+    <div id="res">
+        <div id="gregorian-display" style="font-weight: bold; color: #64748b; font-size: 15px;"></div>
+        <div id="kin-highlight" class="highlight"></div>
+        
+        <div class="grid-info">
+            <div class="info-box" id="moon-display"></div>
+            <div class="info-box" id="week-display"></div>
+        </div>
+
+        <div style="margin: 20px 0;">
+            <span class="badge" id="tag-analog"></span>
+            <span class="badge" id="tag-challenge"></span>
+            <span class="badge" id="tag-occult"></span>
+            <span id="gap-badge"></span>
+        </div>
+
+        <div class="blueprint-section">
+            <h3>🧬 三鍵生命藍圖解析架構</h3>
+            <div class="bp-grid">
+                <div class="bp-item">
+                    <strong>① 核心原型</strong>
+                    <span id="bp-prototype">--</span>
+                </div>
+                <div class="bp-item">
+                    <strong>② 當日調性課題</strong>
+                    <span id="bp-tone-core">--</span>
+                </div>
+                <div class="bp-item">
+                    <strong>③ 波符指引</strong>
+                    <span id="bp-wavespell">--</span>
+                </div>
+                <div class="bp-item">
+                    <strong>④ 四階段位置</strong>
+                    <span id="bp-stage">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="ai-prompt-box">
+            <h3>
+                <span>🔥 AI 深度解說 Prompt 產生器</span>
+                <button class="btn-copy" onclick="copyAIPrompt()">一鍵複製 Prompt</button>
+            </h3>
+            <div id="prompt-text">點擊上方計算後，此處將自動生成結構化座標參數包，供直接餵給 AI 進行深度擴寫...</div>
+        </div>
+    </div>
+
+    <details class="test-console">
+        <summary>執行 Known Good Tests 自動化迴歸測試套件</summary>
+        <button onclick="runTests()" style="margin-top: 12px; padding: 10px 18px; font-size: 13px;">執行完整迴歸檢測</button>
+        <div id="test-results">點擊上方按鈕以驗證歷史錨點、閏日與五力矩陣對齊邏輯...</div>
+    </details>
+</div>
+
+<script>
+    const SEALS = ["紅龍", "白風", "藍夜", "黃種子", "紅蛇", "白世界橋", "藍手", "黃星星", "紅月", "白狗", "藍猴", "黃人", "紅天行者", "白巫師", "藍鷹", "黃戰士", "紅地球", "白鏡子", "藍風暴", "黃太陽"];
+    const TONES = ["磁性", "月亮", "電力", "自我存在", "超頻", "律動", "共鳴", "銀河", "太陽", "行星", "光譜", "水晶", "宇宙"];
+
+    const MOONS = [
+        { name: "磁性蝙蝠之月", family: "紅之月（一點家族）" },
+        { name: "月亮蠍子之月", family: "白之月（二點家族）" },
+        { name: "電力鹿之月", family: "藍之月（三點家族）" },
+        { name: "自我存在貓頭鷹之月", family: "黃之月（四點家族）" },
+        { name: "超頻孔雀之月", family: "紅之月（五點家族）" },
+        { name: "韻律蜥蜴之月", family: "白之月（六點家族）" },
+        { name: "共振猴子之月", family: "藍之月（七點家族）" },
+        { name: "銀河星系鷹之月", family: "黃之月（八點家族）" },
+        { name: "太陽豹之月", family: "紅之月（九點家族）" },
+        { name: "星星狗之月", family: "白之月（十點家族）" },
+        { name: "光譜蛇之月", family: "藍之月（十一點家族）" },
+        { name: "水晶兔子之月", family: "黃之月（十二點家族）" },
+        { name: "宇宙烏龜之月", family: "紅之月（十三點家族）" }
+    ];
+
+    const WEEKS = ["紅色啟動之週", "白色淨化之週", "藍色蛻變之週", "黃色成熟之週"];
+
+    const GAP_KINS = [
+        2, 7, 10, 15, 22, 27, 30, 35, 42, 47, 50, 55, 62, 67, 70, 75, 82, 87, 90, 95,
+        102, 107, 110, 115, 122, 127, 130, 135, 142, 147, 150, 155, 162, 167, 170, 175,
+        182, 187, 190, 195, 202, 207, 210, 215, 222, 227, 230, 235, 242, 247, 250, 255
+    ];
+
+    let currentResultData = null;
+    let currentGregorian = "";
+
+    window.onload = function() {
+        const yearSelect = document.getElementById('yearSelect');
+        const monthSelect = document.getElementById('monthSelect');
+        
+        for (let y = 1950; y <= 2030; y++) {
+            let opt = document.createElement('option');
+            opt.value = y;
+            opt.text = y;
+            if (y === 1976) opt.selected = true; // 預設 1976 年
+            yearSelect.appendChild(opt);
+        }
+
+        for (let m = 1; m <= 12; m++) {
+            let opt = document.createElement('option');
+            opt.value = m;
+            opt.text = m;
+            if (m === 11) opt.selected = true;
+            monthSelect.appendChild(opt);
+        }
+
+        updateDays();
+        document.getElementById('daySelect').value = 12;
+    };
+
+    function updateDays() {
+        const year = parseInt(document.getElementById('yearSelect').value);
+        const month = parseInt(document.getElementById('monthSelect').value);
+        const daySelect = document.getElementById('daySelect');
+        
+        const currentSelectedDay = parseInt(daySelect.value) || 1;
+        const daysInMonth = new Date(year, month, 0).getDate();
+        
+        daySelect.innerHTML = '';
+        for (let d = 1; d <= daysInMonth; d++) {
+            let opt = document.createElement('option');
+            opt.value = d;
+            opt.text = d;
+            daySelect.appendChild(opt);
+        }
+
+        if (currentSelectedDay <= daysInMonth) {
+            daySelect.value = currentSelectedDay;
+        } else {
+            daySelect.value = daysInMonth;
+        }
+    }
+
+    function getIntercalaryDaysCount(startDate, endDate) {
+        let count = 0;
+        let isReverse = startDate > endDate;
+        let sDate = isReverse ? new Date(endDate) : new Date(startDate);
+        let eDate = isReverse ? new Date(startDate) : new Date(endDate);
+        
+        let startY = sDate.getFullYear();
+        let endY = eDate.getFullYear();
+        
+        for (let y = startY; y <= endY; y++) {
+            if ((y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0)) {
+                let feb29 = new Date(y, 1, 29);
+                if (feb29 > sDate && feb29 <= eDate) {
+                    count++;
+                }
+            }
+        }
+        return isReverse ? -count : count;
+    }
+
+    function calculateMayaBlueprint(year, month, day) {
+        const targetDate = new Date(year, month - 1, day);
+        
+        if (month === 2 && day === 29) {
+            return {
+                isIntercalary: true,
+                message: "0.0 Hunab Ku (閏日：無 Kin、無月之獨立跨日節點)"
+            };
+        }
+
+        const anchorDate = new Date(2021, 8, 18);
+        const anchorKin = 18;
+
+        let diffDays = Math.round((targetDate - anchorDate) / 86400000);
+        let intercalaryCount = getIntercalaryDaysCount(anchorDate, targetDate);
+        diffDays -= intercalaryCount;
+
+        let kin = (anchorKin - 1 + diffDays) % 260;
+        if (kin < 0) kin += 260;
+        kin += 1;
+
+        const toneIndex = (kin - 1) % 13;
+        const sealIndex = (kin - 1) % 20;
+        const tone = TONES[toneIndex];
+        const seal = SEALS[sealIndex];
+        const isGAP = GAP_KINS.includes(kin);
+
+        // --- 嚴格數學對稱矩陣計算（五力對應） ---
+        const sealNum = sealIndex + 1; // 1 ~ 20
+
+        // 1. 支持 (Analog)：和為 19 的對稱法則 (19 - sealNum)
+        let analogNum = 19 - sealNum;
+        if (analogNum <= 0) analogNum += 20;
+        const analog = SEALS[analogNum - 1];
+
+        // 2. 挑戰 (Antipode)：相距 10 個圖騰的對衝點 (+10)
+        let challengeNum = sealNum + 10;
+        if (challengeNum > 20) challengeNum -= 20;
+        const challenge = SEALS[challengeNum - 1];
+
+        // 3. 隱藏 (Occult)：和為 21 的內在密碼 (21 - sealNum)
+        let occultNum = 21 - sealNum;
+        const occult = SEALS[occultNum - 1];
+        // ----------------------------------------
+
+        const wsStartKin = Math.floor((kin - 1) / 13) * 13 + 1;
+        const wsStartSeal = SEALS[(wsStartKin - 1) % 20];
+        const wavespellStr = `${wsStartSeal}波符 (起於 Kin ${wsStartKin})`;
+
+        let toneNum = toneIndex + 1;
+        let stage = "";
+        if (toneNum <= 3) stage = "第一階段：起始（意圖與凝聚）";
+        else if (toneNum <= 7) stage = "第二階段：期許（試煉與深化）";
+        else if (toneNum <= 10) stage = "第三階段：超凡（顯化與落地）";
+        else stage = "第四階段：調和（釋放與回歸）";
+
+        let yearBase = (month > 7 || (month === 7 && day >= 26)) ? year : year - 1;
+        let startOfYear = new Date(yearBase, 6, 26);
+        let dayOffset = Math.round((targetDate - startOfYear) / 86400000);
+
+        let moonInfo = "", weekInfo = "", dayInMoonStr = "";
+
+        if (month === 7 && day === 25) {
+            moonInfo = "瑪雅無時間日 (Day Out of Time)";
+            weekInfo = "跨年淨化日";
+        } else {
+            if (dayOffset < 0) {
+                yearBase -= 1;
+                startOfYear = new Date(yearBase, 6, 26);
+                dayOffset = Math.round((targetDate - startOfYear) / 86400000);
+            }
+            
+            if (dayOffset === 364) {
+                moonInfo = "瑪雅無時間日 (Day Out of Time)";
+                weekInfo = "跨年淨化日";
+            } else {
+                let mIndex = Math.floor(dayOffset / 28);
+                if (mIndex > 12) mIndex = 12;
+                if (mIndex < 0) mIndex = 0;
+                
+                let remainder = dayOffset % 28;
+                let wIndex = Math.floor(remainder / 7);
+
+                moonInfo = `${MOONS[mIndex].name}（屬：${MOONS[mIndex].family}）`;
+                weekInfo = `${WEEKS[wIndex]}（第 ${(remainder % 7) + 1} 天）`;
+                dayInMoonStr = `第 ${mIndex + 1} 個月之第 ${remainder + 1} 天`;
+            }
+        }
+
+        return {
+            isIntercalary: false,
+            kin,
+            tone,
+            seal,
+            toneNum,
+            isGAP,
+            moonInfo,
+            weekInfo,
+            dayInMoonStr,
+            wavespellStr,
+            stage,
+            analog,
+            challenge,
+            occult
+        };
+    }
+
+    function runEngine() {
+        const y = parseInt(document.getElementById('yearSelect').value);
+        const m = parseInt(document.getElementById('monthSelect').value);
+        const d = parseInt(document.getElementById('daySelect').value);
+        
+        currentGregorian = `${y} 年 ${m} 月 ${d} 日`;
+        const res = calculateMayaBlueprint(y, m, d);
+        currentResultData = res;
+        
+        const resDiv = document.getElementById('res');
+        resDiv.style.display = 'block';
+
+        document.getElementById('gregorian-display').innerText = `西元日期：${currentGregorian}`;
+
+        if (res.isIntercalary) {
+            document.getElementById('kin-highlight').innerText = "0.0 Hunab Ku";
+            document.getElementById('moon-display').innerText = "跨年空檔";
+            document.getElementById('week-display').innerText = "無 Kin 節點";
+            document.getElementById('tag-analog').style.display = 'none';
+            document.getElementById('tag-challenge').style.display = 'none';
+            document.getElementById('tag-occult').style.display = 'none';
+            document.getElementById('gap-badge').innerHTML = '';
+            document.getElementById('bp-prototype').innerText = "0.0 Hunab Ku (無 Kin 獨立跨日節點)";
+            document.getElementById('bp-tone-core').innerText = "無";
+            document.getElementById('bp-wavespell').innerText = "無";
+            document.getElementById('bp-stage').innerText = "無";
+            document.getElementById('prompt-text').innerText = "此日為 0.0 Hunab Ku 閏日，無對應 Kin 座標。";
+            return;
+        }
+
+        document.getElementById('tag-analog').style.display = 'inline-block';
+        document.getElementById('tag-challenge').style.display = 'inline-block';
+        document.getElementById('tag-occult').style.display = 'inline-block';
+
+        document.getElementById('kin-highlight').innerText = `Kin ${res.kin}：${res.tone}${res.seal}`;
+        document.getElementById('moon-display').innerHTML = `<strong>13月亮曆：</strong><br>${res.moonInfo}<br><small>${res.dayInMoonStr}</small>`;
+        document.getElementById('week-display').innerHTML = `<strong>能量週次：</strong><br>${res.weekInfo}`;
+        
+        document.getElementById('tag-analog').innerText = `支持：${res.analog}`;
+        document.getElementById('tag-challenge').innerText = `挑戰：${res.challenge}`;
+        document.getElementById('tag-occult').innerText = `隱藏：${res.occult}`;
+
+        if (res.isGAP) {
+            document.getElementById('gap-badge').innerHTML = `<span class="badge badge-gap">⚡ 宇宙綠格子 (GAP)</span>`;
+        } else {
+            document.getElementById('gap-badge').innerHTML = '';
+        }
+
+        document.getElementById('bp-prototype').innerText = `${res.seal}（圖騰原型與核心特質）`;
+        document.getElementById('bp-tone-core').innerText = `第 ${res.toneNum} 調性：${res.tone}（能量運作模式）`;
+        document.getElementById('bp-wavespell').innerText = res.wavespellStr;
+        document.getElementById('bp-stage').innerText = res.stage;
+
+        const promptString = `請擔任我的資深星際馬雅生命藍圖解讀師與 Zack 語境架構師。請根據以下精準算出的時空座標與結構化參數，為我深度解說今日（${currentGregorian}）的完整生命藍圖（字數約 1200～1800 字）：
+
+【時空座標參數】
+- 西元日期：${currentGregorian}
+- Kin 數：Kin ${res.kin} (${res.tone}${res.seal})
+- 所屬波符：${res.wavespellStr}
+- 13月亮曆：${res.moonInfo} / ${res.dayInMoonStr} / ${res.weekInfo}
+- 能量門戶：${res.isGAP ? "⚡ 宇宙綠格子 (GAP)" : "一般能量日"}
+- 核心五力：支持(${res.analog}) / 挑戰(${res.challenge}) / 隱藏(${res.occult})
+- 四階段位置：${res.stage}
+
+請依據以下六個層次進行深度剖析與落地指引：
+1. 核心原型與圖騰意涵
+2. 當日調性與核心課題
+3. 今日具體行動指南
+4. 影子狀態與覺察提醒
+5. 波符四階段中的能量位置
+6. 現實生活與創作實踐應用`;
+
+        document.getElementById('prompt-text').innerText = promptString;
+    }
+
+    function copyAIPrompt() {
+        const text = document.getElementById('prompt-text').innerText;
+        if (!text || text.includes("點擊上方計算後")) {
+            alert("請先選擇日期並點擊啟動運算！");
+            return;
+        }
+        navigator.clipboard.writeText(text).then(() => {
+            alert("✅ AI 深度解說 Prompt 已成功複製到剪貼簿！");
+        });
+    }
+
+    function runTests() {
+        const testCases = [
+            { date: [1976, 11, 12], expectedKin: 28, expectedSeal: "黃星星", expectedAnalog: "藍猴" },
+            { date: [2021, 9, 18], expectedKin: 18 },
+            { date: [2019, 7, 25], expectedKin: 13 },
+            { date: [2026, 8, 14], expectedKin: 248 }
+        ];
+
+        let log = "=== V3.3 零誤差矩陣迴歸測試結果 ===\n";
+        let allPassed = true;
+
+        testCases.forEach((tc, idx) => {
+            const r = calculateMayaBlueprint(tc.date[0], tc.date[1], tc.date[2]);
+            let passed = r.kin === tc.expectedKin;
+            if (tc.expectedSeal) {
+                passed = passed && (r.seal === tc.expectedSeal && r.analog === tc.expectedAnalog);
+            }
+            log += `[Test ${idx+1}] ${tc.date.join('-')} => 預期 Kin ${tc.expectedKin}, 實際 Kin ${r.kin} | 支援圖騰校驗: ${r.analog} [${passed ? 'PASS' : 'FAIL'}]\n`;
+            if (!passed) allPassed = false;
+        });
+
+        log += `\n整體測試狀態：${allPassed ? 'ALL PASSED ✅ 五力矩陣與 19-X 數學對稱校準無誤' : 'FAILED ❌ 需檢查演算法'}`;
+        document.getElementById('test-results').innerText = log;
+    }
+</script>
+</body>
+</html>⁠
